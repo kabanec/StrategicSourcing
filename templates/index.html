@@ -123,7 +123,7 @@
                 <tr>
                   <td>${opt.coo}</td>
                   <td>${(opt.duty * 100).toFixed(2)}%</td>
-                  <td>${(opt.tax * 100).toFixed(2)}%</td>
+                  <td>${opt.tax === null ? "N/A" : (opt.tax * 100).toFixed(2) + "%"}</td>
                   <td>${(opt.total * 100).toFixed(2)}%</td>
                 </tr>`).join('')}
             </tbody>

@@ -123,12 +123,15 @@ def run_calculate(products, export_country, import_country, clearance_type, cata
             duty_rate = next((float(d.get("value", 0)) for d in duty_calc if d.get("name") == "RATE"), 0.0)
 
         tax_rate = max((c.get("rate", 0.0) for c in line.get("costLines", []) if c["type"] == "TAX"), default=0.0)
-        total_rate = duty_rate + tax_rate
+
+        display_tax_rate = "N/A" if import_country == "US" else f"{round(tax_rate * 100, 2)}%"
+        display_total_rate = f"{round(duty_rate * 100, 2)}%" if import_country == "US" else f"{round((duty_rate + tax_rate) * 100, 2)}%"
+
         results.append({
             **products[i],
             "duty_rate": f"{round(duty_rate * 100, 2)}%",
-            "tax_rate": "N/A" if import_country == "US" else f"{round(tax_rate * 100, 2)}%",
-            "total_rate": f"{round(total_rate * 100, 2)}%",
+            "tax_rate": display_tax_rate,
+            "total_rate": display_total_rate,
             "restrictions": []
         })
 
@@ -220,12 +223,14 @@ def run_optimize_coo(products, export_country, import_country, clearance_type, c
 
                 tax_rate = max((c.get("rate", 0.0) for c in line.get("costLines", []) if c["type"] == "TAX"), default=0.0)
                 total_rate = duty_rate + tax_rate
+                display_tax_rate = "N/A" if import_country == "US" else f"{round(tax_rate * 100, 2)}%"
+                display_total_rate = f"{round(duty_rate * 100, 2)}%" if import_country == "US" else f"{round(total_rate * 100, 2)}%"
 
                 coo_results.append({
                     "coo": coo,
                     "duty": duty_rate,
-                    "tax": tax_rate,
-                    "total": total_rate
+                    "tax": None if import_country == "US" else tax_rate,
+                    "total": duty_rate if import_country == "US" else (duty_rate + tax_rate)
                 })
             except Exception as e:
                 print(f"[ERROR] {desc} COO={coo} → {e}")
@@ -240,8 +245,8 @@ def run_optimize_coo(products, export_country, import_country, clearance_type, c
             "category": category,
             "preferenceProgramApplicable": preference,
             "duty_rate": f"{round(best['duty'] * 100, 2)}%",
-            "tax_rate": f"{round(best['tax'] * 100, 2)}%",
-            "total_rate": f"{round(best['total'] * 100, 2)}%",
+            "tax_rate": display_tax_rate,
+            "total_rate": display_total_rate,
             "coo_comparisons": coo_results,
             "restrictions": []
         })
