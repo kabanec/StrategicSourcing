@@ -5,6 +5,29 @@ import requests
 import pandas as pd
 from flask import Flask, render_template, request
 from dotenv import load_dotenv
+import uuid
+from flask import request, Response
+import logging
+
+logger = logging.getLogger(__name__)
+logging.basicConfig(level=logging.DEBUG)
+
+VALID_USER = os.getenv("AUTH_USER", "admin")
+VALID_PASS = os.getenv("AUTH_PASS", "password")
+
+def auth_required():
+    request_id = str(uuid.uuid4())
+    auth = request.authorization
+    logger.debug(f"[{request_id}] Authorization header: {auth}")
+    if not auth:
+        logger.error(f"[{request_id}] No authorization header provided")
+        return Response('Unauthorized', 401, {'WWW-Authenticate': 'Basic realm="Login Required"'})
+    if auth.username != VALID_USER or auth.password != VALID_PASS:
+        logger.error(f"[{request_id}] Invalid credentials: username={auth.username}, expected={VALID_USER}")
+        return Response('Unauthorized', 401, {'WWW-Authenticate': 'Basic realm="Login Required"'})
+    logger.debug(f"[{request_id}] Authentication successful")
+    return None
+
 
 load_dotenv()
 app = Flask(__name__)
@@ -237,6 +260,10 @@ def index():
     products = []
     products_with_results = []
     response_debug = None
+
+    auth_error = auth_required()
+    if auth_error:
+        return auth_error
 
     # Load catalogue
     df = pd.read_excel("catalogue.xlsx")
