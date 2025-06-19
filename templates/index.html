@@ -23,8 +23,8 @@
       <div class="col-md-4">
         <label>Exporting Country</label>
         <select name="export_country" class="form-select" required>
+          <option value="CA" {% if request.form.get('export_country') == 'CA' %}selected{% endif %}>Canada</option>
           <option value="CN" {% if request.form.get('export_country') == 'CN' %}selected{% endif %}>China</option>
-          <option value="US" {% if request.form.get('export_country') == 'US' %}selected{% endif %}>United States</option>
         </select>
       </div>
       <div class="col-md-4">
@@ -66,8 +66,8 @@
     <input type="hidden" name="action" id="action" value="calculate">
 
     <div class="d-flex gap-3">
-      <button type="button" class="btn btn-primary" onclick="submitWithAction('calculate')">Calculate</button>
-      <button type="button" class="btn btn-outline-primary" onclick="submitWithAction('optimize')">Optimize COO</button>
+      <button type="button" class="btn btn-primary" onclick="submitWithAction('calculate')">Duty Rate</button>
+      <button type="button" class="btn btn-outline-primary" onclick="submitWithAction('optimize')">Best Duty Rate</button>
     </div>
   </form>
 </div>

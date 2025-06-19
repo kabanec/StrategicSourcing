@@ -127,7 +127,7 @@ def run_calculate(products, export_country, import_country, clearance_type, cata
         results.append({
             **products[i],
             "duty_rate": f"{round(duty_rate * 100, 2)}%",
-            "tax_rate": f"{round(tax_rate * 100, 2)}%",
+            "tax_rate": "N/A" if import_country == "US" else f"{round(tax_rate * 100, 2)}%",
             "total_rate": f"{round(total_rate * 100, 2)}%",
             "restrictions": []
         })
