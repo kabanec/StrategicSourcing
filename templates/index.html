@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Strategic Sourcing Calculator</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  <style>
+    .coo-table td, .coo-table th {
+      font-size: 0.9rem;
+    }
+    .expand-toggle {
+      cursor: pointer;
+      font-size: 1.2rem;
+      padding: 0 0.5rem;
+    }
+  </style>
+</head>
+<body>
+<div class="container mt-5">
+  <h2>Strategic Sourcing Calculator</h2>
+  <form method="POST" id="calc-form">
+    <!-- Country and clearance selection -->
+    <div class="row mb-3">
+      <div class="col-md-4">
+        <label>Exporting Country</label>
+        <select name="export_country" class="form-select" required>
+          <option value="CN" {% if request.form.get('export_country') == 'CN' %}selected{% endif %}>China</option>
+          <option value="US" {% if request.form.get('export_country') == 'US' %}selected{% endif %}>United States</option>
+        </select>
+      </div>
+      <div class="col-md-4">
+        <label>Importing Country</label>
+        <select name="import_country" class="form-select" required>
+          <option value="US" {% if request.form.get('import_country') == 'US' %}selected{% endif %}>United States</option>
+        </select>
+      </div>
+      <div class="col-md-4">
+        <label>Clearance Type</label>
+        <select name="clearance_type" class="form-select">
+          <option value="Type 86" {% if request.form.get('clearance_type') == 'Type 86' %}selected{% endif %}>Type 86</option>
+          <option value="Type 11" {% if request.form.get('clearance_type') == 'Type 11' %}selected{% endif %}>Type 11</option>
+        </select>
+      </div>
+    </div>
+
+    <h5>Products</h5>
+    <table class="table table-bordered">
+      <thead>
+      <tr>
+        <th></th>
+        <th>Description</th>
+        <th>HS Code</th>
+        <th>COO</th>
+        <th>Qty</th>
+        <th>Category</th>
+        <th>Preferential</th>
+        <th>Duty</th>
+        <th>Tax</th>
+        <th>Total</th>
+        <th><button type="button" class="btn btn-success" onclick="addProductRow()">Add</button></th>
+      </tr>
+      </thead>
+      <tbody id="products-body"></tbody>
+    </table>
+
+    <input type="hidden" name="product_data" id="product_data">
+    <input type="hidden" name="action" id="action" value="calculate">
+
+    <div class="d-flex gap-3">
+      <button type="button" class="btn btn-primary" onclick="submitWithAction('calculate')">Calculate</button>
+      <button type="button" class="btn btn-outline-primary" onclick="submitWithAction('optimize')">Optimize COO</button>
+    </div>
+  </form>
+</div>
+
+<script>
+  const catalogue = {{ catalogue | tojson | safe }};
+  const original = {{ original | tojson | safe }};
+  const results = {{ results | tojson | safe }};
+  let productIndex = 0;
+
+  function addProductRow(item = {}) {
+    const table = document.getElementById("products-body");
+    const rowId = `row-${productIndex}`;
+    const collapseId = `collapse-${productIndex}`;
+    productIndex++;
+
+    const descOptions = Object.keys(catalogue).map(d =>
+      `<option value="${d}" ${d === item.description ? "selected" : ""}>${d}</option>`).join('');
+
+    const cooOptions = ["", "US", "CA", "MX", "CN", "VN"].map(c =>
+      `<option value="${c}" ${item.coo === c ? "selected" : ""}>${c || "Not Specified"}</option>`).join('');
+
+    const row = document.createElement("tr");
+    row.id = rowId;
+    row.innerHTML = `
+      <td class="text-center align-middle">
+        ${item.coo_comparisons ? `<span class="expand-toggle" data-bs-toggle="collapse" data-bs-target="#${collapseId}" aria-expanded="false">▶</span>` : ''}
+      </td>
+      <td><select name="description" class="form-select" onchange="updateRowFromDescription(this)">
+        <option value="">Select</option>${descOptions}</select></td>
+      <td><input name="hs_code" class="form-control" value="${item.hs_code || ""}" readonly></td>
+      <td><select name="coo" class="form-select">${cooOptions}</select></td>
+      <td><input name="quantity" type="number" min="1" class="form-control" value="${item.quantity || 1}"></td>
+      <td><input name="category" class="form-control" value="${item.category || ""}" readonly></td>
+      <td class="text-center"><input type="checkbox" name="preferenceProgramApplicable" ${item.preferenceProgramApplicable ? "checked" : ""}></td>
+      <td>${item.duty_rate || ""}</td>
+      <td>${item.tax_rate || ""}</td>
+      <td>${item.total_rate || ""}</td>
+      <td><button class="btn btn-danger" onclick="removeProductRow(this)">Remove</button></td>
+    `;
+    table.appendChild(row);
+
+    if (item.coo_comparisons && item.coo_comparisons.length > 1) {
+      const collapseRow = document.createElement("tr");
+      collapseRow.className = "collapse-row collapse";
+      collapseRow.id = collapseId;
+      collapseRow.innerHTML = `
+        <td colspan="11">
+          <table class="table table-sm table-bordered coo-table mb-0">
+            <thead><tr><th>COO</th><th>Duty</th><th>Tax</th><th>Total</th></tr></thead>
+            <tbody>
+              ${item.coo_comparisons.map(opt => `
+                <tr>
+                  <td>${opt.coo}</td>
+                  <td>${(opt.duty * 100).toFixed(2)}%</td>
+                  <td>${(opt.tax * 100).toFixed(2)}%</td>
+                  <td>${(opt.total * 100).toFixed(2)}%</td>
+                </tr>`).join('')}
+            </tbody>
+          </table>
+        </td>
+      `;
+      table.appendChild(collapseRow);
+    }
+  }
+
+  function removeProductRow(button) {
+    const mainRow = button.closest("tr");
+    const nextRow = mainRow.nextElementSibling;
+    if (nextRow && nextRow.classList.contains("collapse-row")) {
+      nextRow.remove();
+    }
+    mainRow.remove();
+  }
+
+  function updateRowFromDescription(select) {
+    const row = select.closest("tr");
+    const desc = select.value;
+    const hs = row.querySelector('input[name="hs_code"]');
+    const cat = row.querySelector('input[name="category"]');
+    hs.value = catalogue[desc]?.hs_code || '';
+    cat.value = catalogue[desc]?.category || '';
+  }
+
+  function submitWithAction(actionType) {
+    const table = document.getElementById("products-body");
+    const rows = Array.from(table.querySelectorAll("tr"))
+                      .filter((row, i) => row.querySelector('select[name="description"]')); // only main rows
+
+    if (actionType === "optimize" && rows.length > 3) {
+      alert("You can only optimize up to 3 products.");
+      return;
+    }
+
+    const products = rows.map(row => {
+      const inputs = row.querySelectorAll("input, select");
+      return {
+        description: inputs[0].value,
+        hs_code: inputs[1].value,
+        coo: inputs[2].value,
+        quantity: parseInt(inputs[3].value),
+        category: inputs[4].value,
+        preferenceProgramApplicable: inputs[5].checked
+      };
+    });
+
+    document.getElementById("product_data").value = JSON.stringify(products);
+    document.getElementById("action").value = actionType;
+    document.getElementById("calc-form").submit();
+  }
+
+  window.onload = function () {
+    const merged = original.map((p, i) => Object.assign({}, p, results[i] || {}));
+    merged.forEach(addProductRow);
+  };
+</script>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>
